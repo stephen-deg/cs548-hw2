@@ -1,0 +1,68 @@
+#!/bin/bash
+
+#
+# Sept 16, 2013
+# Stephen Ranshous
+#
+# A script that will run a user provided command with it's arguments using
+# SSH if other nodes are available or localhost if there is no nodefile.
+#
+# Usage:
+#	./simple_mpirun -np #nodes [CMD] [args]
+
+
+
+function usage {
+    echo "usage: $0 -np [#nodes] [CMD] [args]"; exit 1;
+}
+
+# Make sure they have the correct number of arguments
+[ $# -lt 3 ] && usage $0
+
+# Make sure the first parameter is the -np
+[ ! "$1" = '-np' ] && usage $0
+
+
+# grab the arguements
+NP=$2
+CMD=$3
+ARGS=${@:4}     # Set args equal to all of the command line arguments from
+                # arg4:argN
+
+# If the nodefile exists then we will use it to distribute our programs
+# If it does not then we will run them all on localhost
+if [[ -f $PBS_NODEFILE ]]
+then
+    # Connect to each node in the nodefile via SSH and run the command
+    # passing the extra arguments useful for MPI_INIT to the program as well.
+
+    # The root node in the case of using SSH will be the first node listed in
+    # the nodefile.
+    ROOT_NODE=`cat $PBS_NODEFILE | head -n 1`
+    echo "Using ROOT_NODE $ROOT_NODE"
+
+    # The port to connect to the root node on
+    ROOT_PORT=80085
+    RANK=0
+    # Use SSH to connect to each node and run the program
+    cat $PBS_NODEFILE | while read node; do
+        ssh -n $node "$CMD" $ARGS $NP $ROOT_NODE $ROOT_PORT $RANK &
+        ((RANK++))
+    done
+
+else
+    echo "PBS_NODEFILE not found, using localhost instead"
+    # The root node when using only localhost will obviously be localhost
+    ROOT_NODE=localhost
+
+    # The port to connect to the root node on
+    ROOT_PORT=80085
+
+    # Execute the program $NP times
+    for (( i=0; i<$NP; i++ ))
+    do
+        echo "RANK = $i"
+        "$CMD" $ARGS $NP $ROOT_NODE $ROOT_PORT $i &
+
+    done
+fi
