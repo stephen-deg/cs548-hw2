@@ -61,7 +61,6 @@ else
     # Execute the program $NP times
     for (( i=0; i<$NP; i++ ))
     do
-        echo "RANK = $i"
         "$CMD" $ARGS $NP $ROOT_NODE $ROOT_PORT $i &
 
     done
