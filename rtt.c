@@ -24,7 +24,8 @@ void findMinMaxAvg(double*, int, minmaxavg*);
 int main(int argc, char** argv) {
     // Initialize the world
     MPI_Init(&argc, &argv);
-
+    printf("%s back from init.\n", argv[argc+3]);
+    fflush(stdout);
     // Find out what rank this process is
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
