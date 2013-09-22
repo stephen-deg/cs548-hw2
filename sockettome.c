@@ -74,14 +74,17 @@ int accept_connection(int s)
 int request_connection(char *hn, int port)
 {
   struct sockaddr_in sn;
-  int s, ok;
+  int s, ok, tries;
   struct hostent *he;
 
   if (!(he = gethostbyname(hn))) {
-    puts("can't gethostname");
+    //puts("can't gethostname");
+    printf("can't get hostname\n");
+    fflush(stdout);
     exit(1);
   } 
   ok = 0;
+  tries = 0;
   while (!ok) {
 		bzero((char *)&sn,sizeof(sn));
     sn.sin_family = AF_INET;
@@ -93,7 +96,7 @@ int request_connection(char *hn, int port)
       exit(1);
     }
     ok = (connect(s, (struct sockaddr*)&sn, sizeof(sn)) != -1);
-    if (!ok) { sleep (1); perror("connect():"); ok = 1; s=-1;}
+    if (!ok) { tries++; if(tries > 500){ ok = 1; s=-1;}}
   }
   return s;
 }

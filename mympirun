@@ -42,7 +42,10 @@ then
     echo "Using ROOT_NODE $ROOT_NODE"
 
     # The port to connect to the root node on
-    ROOT_PORT=80085
+    # ROOT_PORT=80085
+    BASE_PORT=$RANDOM
+    let "ROOT_PORT = BASE_PORT%100+10000"
+
     RANK=0
     # Use SSH to connect to each node and run the program
     cat $PBS_NODEFILE | while read node; do
@@ -56,7 +59,10 @@ else
     ROOT_NODE=localhost
 
     # The port to connect to the root node on
-    ROOT_PORT=80085
+    #ROOT_PORT=80085
+
+    BASE_PORT=$RANDOM
+    let "ROOT_PORT = BASE_PORT%100+10000"
 
     # Execute the program $NP times
     for (( i=0; i<$NP; i++ ))

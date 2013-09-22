@@ -5,10 +5,13 @@
 #include <limits.h>
 #include <sys/time.h>
 
-#define DIRECTORY "/home/temp523/homework/2/part1/"
+#define DIRECTORY "/home/temp521/"
+//#define DIRECTORY "/Users/stephendeguglielmo/Downloads/"
 #define ROOT 0
 #define MAX_ITER 20
 #define NUM_MESSAGES 9
+
+#define DEBUG 0
 
 // Used to return the min/max elements in the array
 typedef struct {
@@ -24,8 +27,12 @@ void findMinMaxAvg(double*, int, minmaxavg*);
 int main(int argc, char** argv) {
     // Initialize the world
     MPI_Init(&argc, &argv);
+
+    #if DEBUG 
     printf("%s back from init.\n", argv[argc+3]);
     fflush(stdout);
+    #endif
+
     // Find out what rank this process is
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -35,22 +42,36 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
     // Wait for all processes to print their rank before continuing
+
+    #if DEBUG 
     printf("%d calling barrier.\n", world_rank);
     fflush(stdout);
+    #endif
+
     MPI_Barrier(MPI_COMM_WORLD);
+
+    #if DEBUG 
     printf("%d barriered.\n", world_rank);
     fflush(stdout);
+    #endif
 
     // Do experiment A
     experiment_a(world_size, world_rank);
 
     // Sync up and exit cleanly
+
+    #if DEBUG 
     printf("%d calling finalize.\n", world_rank);
     fflush(stdout);
+    #endif
+
     MPI_Finalize();
+
+    #if DEBUG 
     printf("%d finalized.\n", world_rank);
     fflush(stdout);
-
+    #endif
+    
     return 0;
 }
 
@@ -84,6 +105,12 @@ void experiment_a(int world_size, int world_rank) {
 
         // Go through each message size 64B -> 16KB
         for(int k = 0; k < NUM_MESSAGES; k++) {
+
+            #if DEBUG 
+            printf("rank 0 is on iteration %d\n", k);
+            fflush(stdout);
+            #endif
+
             MPI_Barrier(MPI_COMM_WORLD);
             // Go through each node for the same message size before sending
             // the next larger message
@@ -106,7 +133,7 @@ void experiment_a(int world_size, int world_rank) {
                     gettimeofday(&end, NULL);
 
                     // Round trip time = end time - start time
-                    rtts[j] = ((double)(end.tv_sec - start.tv_sec) -
+                    rtts[j] = ((double)(end.tv_sec - start.tv_sec) +
                                (double)(end.tv_usec - start.tv_usec)/1e6);
                 }
 
@@ -119,9 +146,11 @@ void experiment_a(int world_size, int world_rank) {
                 findMinMaxAvg(rtts+1, nIters-1, &mma);
                 printf(" %e %e %e", mma.avg, mma.min, mma.max);
                 fprintf(fp, " %e %e %e", mma.avg, mma.min, mma.max);
+                fflush(fp);
             }
             printf("\n");
             fprintf(fp, "\n");
+            fflush(fp);
         }
         fclose(fp);
     }
@@ -129,6 +158,12 @@ void experiment_a(int world_size, int world_rank) {
     else {
         // Loop over every message size
         for(int i = 0; i < NUM_MESSAGES; i++) {
+
+            #if DEBUG 
+            printf("rank %d is on iteration %d\n", world_rank, i);
+            fflush(stdout);
+            #endif
+
             MPI_Barrier(MPI_COMM_WORLD);
             // For every message size we will receive N messages
             int nIters = MAX_ITER - 2*i;

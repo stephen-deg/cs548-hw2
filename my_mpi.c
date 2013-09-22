@@ -11,12 +11,14 @@ static node *nodeTable;
 static envData worldData;
 static data myData;
 
+#define DEBUG 0
+
 /* Author: Stephen Ranshous */
 int MPI_Barrier(MPI_Comm comm)
 {
     if (my_state == INVALID)
     {
-        perror("after finalize MPI calls are not allowed");
+        fprintf(stderr,"after finalize MPI calls are not allowed");
         exit(1);
     }
 
@@ -29,7 +31,17 @@ int MPI_Barrier(MPI_Comm comm)
         int i, allGood = ALL_GOOD;
         for (i = 1; i < worldData.nodes; i++)
         {
+        	#if DEBUG 
+            printf("listening for node %d\n",i);
+            fflush(stdout);
+            #endif
+
             MPI_Recv(&ack, 4, MPI_CHAR, i, MPI_ANY_TAG, MPI_Comm_World, MPI_STATUS_IGNORE);
+
+            #if DEBUG
+            printf("got back from node %d\n",i);
+            fflush(stdout);
+            #endif
 
             if (ack != MPI_ACK)
             {
@@ -41,7 +53,17 @@ int MPI_Barrier(MPI_Comm comm)
 
         for (i = 1; i < worldData.nodes; i++)
         {
+        	#if DEBUG 
+            printf("sending to node %d\n",i);
+            fflush(stdout);
+            #endif
+
             MPI_Send(&ack, 4, MPI_CHAR, i, MPI_ANY_TAG, MPI_Comm_World);
+
+            #if DEBUG 
+            printf("sent to node %d\n",i);
+            fflush(stdout);
+            #endif
         }
     }
     /* If I am NOT ROOT I am going to do a send to the ROOT to let it know
@@ -50,12 +72,29 @@ int MPI_Barrier(MPI_Comm comm)
     else
     {
         ack = MPI_ACK;
+        #if DEBUG 
+        printf("node %d sending to root\n",myData.node);
+        fflush(stdout);
+        #endif
+
         MPI_Send(&ack, 4, MPI_CHAR, 0, MPI_ANY_TAG, MPI_Comm_World);
+
+        #if DEBUG 
+        printf("node %d waiting for root to release it\n",myData.node);
+        fflush(stdout);
+        #endif
+
         MPI_Recv(&ack, 4, MPI_CHAR, 0, MPI_ANY_TAG, MPI_Comm_World, MPI_STATUS_IGNORE);
+
+        #if DEBUG 
+        printf("node %d released by root\n",myData.node);
+        fflush(stdout);
+        #endif
 
         if (ack == MPI_NACK)
         {
-            perror("error in barrier call");
+            printf("error in barrier call\n");
+            fflush(stdout);
             exit(1);
         }
     }
@@ -105,7 +144,8 @@ int MPI_Finalize(void)
 
         if (ack == MPI_NACK)
         {
-            perror("error in finalize");
+            fprintf(stderr, "Rank %d error in finalize", myData.node);
+            fflush(stderr);
             exit(1);
         }
     }
@@ -173,21 +213,37 @@ void MPI_Init(int *argc, char ***argv)
     {
         //Serve a socket on our port for other nodes to connect to 
         socketFD = serve_socket(worldData.rootPort);
+        port = worldData.rootPort;
         int i;
 
+        #if DEBUG 
+        printf("root served socket\n");
+        fflush(stdout);
+        #endif
 
         //Then, loop through the other number of nodes waiting on connections from them
         for(i = 1; i < np; i++)
         {
 
+        	#if DEBUG 
+            printf("root waiting on connection from a node\n");
+            fflush(stdout);
+            #endif
+
             int fd = accept_connection(socketFD); //this will block until a connection with a node is made
+            
+            #if DEBUG 
+            printf("root got connection to a node\n");
+            fflush(stdout);
+            #endif
 
             //Then, start the handshake process
             //The first message will be an int describing the length of the payload to follow
             int nextMsgLength;
             if(read(fd, &nextMsgLength, sizeof(int)) == -1)
             {
-                fprintf(stderr,"Error reading hello message length for %d\n",i);
+                printf("Error reading hello message length for %d\n",i);
+                fflush(stdout);
                 exit(1);
             }
             else
@@ -196,7 +252,8 @@ void MPI_Init(int *argc, char ***argv)
                 mpiInitMsg msg;
                 if(read(fd, &msg, nextMsgLength) == -1)
                 {
-                    fprintf(stderr,"Error reading hello message for %d\n",i);
+                    printf("Error reading hello message for %d\n",i);
+                    fflush(stdout);
                     exit(1);
                 }
                 else
@@ -215,7 +272,6 @@ void MPI_Init(int *argc, char ***argv)
                     nextMsgLength = sizeof(msg);
                     write(fd, &nextMsgLength, sizeof(int));
                     write(fd, &msg, nextMsgLength);
-
                 }
             }
         }
@@ -272,7 +328,8 @@ void MPI_Init(int *argc, char ***argv)
         {
             if(count > 50)
             {
-                fprintf(stderr,"Error finding an available port\n");
+                printf("Error finding an available port\n");
+                fflush(stdout);
                 exit(1);
             }
 
@@ -282,15 +339,51 @@ void MPI_Init(int *argc, char ***argv)
         }
 
         port = startingPort;
+
+        #if DEBUG 
+        printf("rank: %d served socket on %d\n",rank,port);
+        fflush(stdout);
+        #endif
+
         //Then setup our mpi_init message to the root node
         mpiInitMsg initMsg;
         initMsg.type = 0;
         strcpy(initMsg.hostname, name);
         initMsg.port = startingPort;
         initMsg.node = rank;
+        int rootFD = -1;
+        int tries = 0;
 
         //Request connection to root
-        int rootFD = request_connection(worldData.rootHost, worldData.rootPort);
+        while(rootFD == -1)
+        {
+            if(tries > 3)
+            {
+              printf("rank: %d DIED while attempting to connect to root\n",rank);
+              fflush(stdout);
+              exit(1);
+            }
+
+            #if DEBUG 
+            if(tries > 1)
+            {
+                printf("rank: %d error attemtping request conn to root\n",rank);
+                fflush(stdout);
+            }
+
+            printf("rank: %d attemtping request conn to root\n",rank);
+            fflush(stdout);
+            #endif
+
+            rootFD = request_connection(worldData.rootHost, worldData.rootPort);
+            tries++;
+        }
+        nodeTable[0].fp = rootFD;
+
+        #if DEBUG 
+        printf("rank: %d got connection to root\n",rank);
+        fflush(stdout);
+        #endif
 
         //Send our data to the root
         int msgLength = sizeof(initMsg);
@@ -303,6 +396,7 @@ void MPI_Init(int *argc, char ***argv)
         if(rank != initMsg.node)
         {
             printf("Error setting up ranks\n");
+            fflush(stdout);
             exit(1);
         }
 
@@ -319,10 +413,16 @@ void MPI_Init(int *argc, char ***argv)
             mpiInitMsg replyMsg;
             read(rootFD, &nodeMsgSize, sizeof(int));
             read(rootFD, &replyMsg, nodeMsgSize);
-            node tmpNode = nodeTable[replyMsg.node];
-            tmpNode.hostname = strdup(replyMsg.hostname);
-            tmpNode.rank = replyMsg.node;
-            tmpNode.port = replyMsg.port;
+            node *tmpNode = &nodeTable[replyMsg.node];
+            tmpNode->hostname = strdup(replyMsg.hostname);
+            tmpNode->rank = replyMsg.node;
+            tmpNode->port = replyMsg.port;
+            tmpNode->fp = rootFD;
+
+            #if DEBUG 
+            printf("Rank %d got table entry for rank %d: Host: %s, port: %d using fd: %d\n",rank, (nodeTable[replyMsg.node]).rank,(nodeTable[replyMsg.node]).hostname,(nodeTable[replyMsg.node]).port,(nodeTable[replyMsg.node]).fp);
+            fflush(stdout);
+            #endif
         }
 
         //Now listen for the "done" message telling the node it is free to leave the mpi_init function
@@ -343,7 +443,6 @@ void MPI_Init(int *argc, char ***argv)
 /* Author: Mike O'Brien */
 void MPI_Send(void * buffer, int count, int type, int dest, int tag, int comm)
 {
-    int fd;	//file descriptor
 
     if (dest >= worldData.nodes) //check that dest is in bounds
     {
@@ -351,24 +450,35 @@ void MPI_Send(void * buffer, int count, int type, int dest, int tag, int comm)
         exit(1);
     }
 
-    //get port and hostname
-    char * hname = nodeTable[dest].hostname;
-    int port = nodeTable[dest].port;
+    //get port and hostna
 
-    //open connection
-    fd = request_connection(hname,port);
+    node sendNode = nodeTable[dest];
+
+    #if DEBUG 
+    printf("Rank %d is sending a message to rank %d. Named: %s port %d\n",myData.node,dest, sendNode.hostname, sendNode.port);
+
+    printf("Rank %d got FD to rank %d\n",myData.node, dest);
+    fflush(stdout);
+    #endif
 
     //write
-    int bWritten = write(fd, (void*) buffer, count*sizeof(char));
+    int bWritten = 0;
+    while(bWritten != count)
+    {
+        bWritten += write(sendNode.fp, (void*) buffer+bWritten, (count*sizeof(char) - bWritten));
+    }
 
-    close(fd);
+    #if DEBUG 
+    printf("Rank %d wrote %d bytes of data to rank %d at fd %d\n",myData.node, bWritten, dest, sendNode.fp);
+    fflush(stdout);
+    #endif
+
     return;
 }
 
 /* Author: Mike O'Brien */
 void MPI_Recv(void * buffer, int count, int type, int source, int tag, int comm, int status)
 {
-    int fd;	//file descriptor
 
     if (source >= worldData.nodes) //check that dest is in bounds
     {
@@ -376,11 +486,18 @@ void MPI_Recv(void * buffer, int count, int type, int source, int tag, int comm,
         exit(1);
     }
 
-    fd = accept_connection(myData.socketFd);
+    node recNode = nodeTable[source];
 
     //read
-    int bRead = read(fd, (void*) buffer, count*sizeof(char));
+    int bRead = 0;
+    while(bRead != count)
+    {
+        bRead += read(recNode.fp, (void*) buffer+bRead, (count*sizeof(char) - bRead));
+    }
 
-    close(fd);
+    #if DEBUG 
+    printf("rank %d read %d bytes of data from %d at fd %d\n", myData.node, bRead, source, recNode.fp);
+    #endif
+    
     return;
 }

@@ -31,7 +31,7 @@
 #endif
 
 #define MPI_ACK 1
-#define MPI_NACK -1
+#define MPI_NACK 2
 
 #define ALL_GOOD 42
 #define SHIT_ITS_NOT_ALL_GOOD 37
