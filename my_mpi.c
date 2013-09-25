@@ -13,7 +13,13 @@ static data myData;
 
 #define DEBUG 0
 
-/* Author: Stephen Ranshous */
+/* Author: Stephen Ranshous
+ *
+ * The high level description for the barrier is that every node that is
+ * not rank 0 sends a message to the root that they have hit the barrier,
+ * then when the root receives them all it will send responses to every
+ * node saying it can continue
+ */
 int MPI_Barrier(MPI_Comm comm)
 {
     if (my_state == INVALID)
@@ -103,7 +109,13 @@ int MPI_Barrier(MPI_Comm comm)
     return MPI_SUCCESS;
 }
 
-/* Author: Stephen Ranshous */
+/* Author: Stephen Ranshous
+ *
+ * Finalize works in much the same way as barrier. Every node that is not
+ * rank 0 will send a message to rank 0 saying they are done, and when
+ * rank 0 receives all of the messages it will send a response to everyone
+ * saying that everyone has finalized.
+ */
 int MPI_Finalize(void)
 {
     if (my_state == INVALID)
@@ -136,6 +148,9 @@ int MPI_Finalize(void)
             MPI_Send(&ack, 4, MPI_CHAR, i, MPI_ANY_TAG, MPI_Comm_World);
         }
     }
+    /* If I am NOT ROOT then I am going to send a message to ROOT saying I am
+     * done and that I'm waiting to finish. I will then wait for the reply so
+     * I know whether to terminate successfully or not. */
     else
     {
         ack = MPI_ACK;
@@ -150,9 +165,6 @@ int MPI_Finalize(void)
         }
     }
 
-    /* If I am NOT ROOT then I am going to send a message to ROOT saying I am
-     * done and that I'm waiting to finish. I will then wait for the reply so
-     * I know whether to terminate successfully or not. */
 
     /* After returning from this function there can be no more MPI_xx calls.
      * This is not true in general (there exists a subset of MPI calls still
@@ -438,6 +450,7 @@ void MPI_Init(int *argc, char ***argv)
 
     //Adjust the argc before continuing onto the users' program
     (*argc) -= 4;
+    my_state = VALID;
 }
 
 /* Author: Mike O'Brien */
