@@ -15,7 +15,7 @@ GCC=gcc
 GCCFLAGS=-g -Wall -std=c99
 EXEC=rtt
 DEPS=my_mpi.h sockettome.h
-SOURCES=rtt.c my_mpi.c sockettome.c
+SOURCES=myrtt.c my_mpi.c sockettome.c
 OBJECTS=$(SOURCES:.c=.o)
 
 all: interp_gpu interp_serial $(SOURCES) $(EXEC)

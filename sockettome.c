@@ -1,3 +1,7 @@
+/* This file is a modified version of the sockettome library provided for use by Dr.Jim Plank at the University of Tennessee Knoxville
+Modified by: Stephen Deguglielmo 
+*/
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -9,21 +13,6 @@
 #include <strings.h>
 #include "unistd.h"
 
-static char * inadport_decimal(struct sockaddr_in *sad)
-{
-        static char buf[32];
-        int a;
-
-        a = ntohl(0xffffffff & sad->sin_addr.s_addr);
-        sprintf(buf, "%d.%d.%d.%d:%d",
-                        0xff & (a >> 24),
-                        0xff & (a >> 16),
-                        0xff & (a >> 8),
-                        0xff & a,
-                        0xffff & (int)ntohs(sad->sin_port));
-        return buf;
-}
-
 int serve_socket(int port)
 {
   int s;
@@ -31,7 +20,7 @@ int serve_socket(int port)
   struct hostent *he;
 
   if (!(he = gethostbyname("localhost"))) {
-    puts("can't gethostname");
+    fprintf(stderr,"can't gethostname");
     exit(1);
   }
 
