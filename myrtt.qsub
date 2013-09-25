@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+#This is an example script for OpenMPI
+#
+#These commands set up the PBS Environment for your job:
+#job name
+#PBS -N rtt
+#2 processes (mapped onto two cores of the same node) for 5 minutes
+#PBS -l nodes=4:ppn=1,walltime=00:05:00
+#Q name
+#PBS -q default
+#your email
+#PBS -M <your@email>
+#error handling
+#PBS -m abe
+#output file
+#PBS -o mpi_hello.out
+
+echo hello
+
+echo
+echo PBS JOB id is $PBS_JOBID
+echo PBS_NODEFILE is $PBS_NODEFILE
+echo PBS_QUEUE is $PBS_QUEUE
+NPROCS=`wc -l < $PBS_NODEFILE`
+echo
+
+hostname
+
+echo
+cat $PBS_NODEFILE
+echo NPROCS: $NPROCS
+
+echo
+/home/temp521/cs548/hw2/mympirun -np $NPROCS /home/temp521/cs548/hw2/rtt

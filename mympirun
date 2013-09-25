@@ -49,7 +49,7 @@ then
     RANK=0
     # Use SSH to connect to each node and run the program
     cat $PBS_NODEFILE | while read node; do
-        ssh -n $node "$CMD" $ARGS $NP $ROOT_NODE $ROOT_PORT $RANK &
+        ssh -n -q $node "$CMD" $ARGS $NP $ROOT_NODE $ROOT_PORT $RANK &
         ((RANK++))
     done
 
